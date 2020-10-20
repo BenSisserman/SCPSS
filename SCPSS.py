@@ -3,6 +3,9 @@ Author : Ben Sisserman
 Date : 10/18/2020
 Description  :  This python module is meant to be used by a PC to intialize and send commands to SCPSS devices. 
 
+    Currently each instance of SCPSS establishes communication with exactly one device. May revisit this design for managing
+    mulitple devices later on.
+
 NOTE : all IPs are strings and all port are ints, this matters for using both the socket library and decoding on devices
 '''
 
