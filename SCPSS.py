@@ -8,21 +8,36 @@ NOTE : all IPs are strings and all port are ints, this matters for using both th
 
 import socket 
 
-class SCPSS:
-    # defines the users socket for recieving data from devices
-    def __init__(self, userIP, userPort):
-        self.userIP = userIP
-        self.userPort = userPort
-        self.mySocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.mySocket.bind((self.userIP,self.userPort))
-        self.initMsg = bytes(self.userIP + " " + str(self.userPort), 'utf-8') # convert string to bytes array 
+TIMEOUT_VAL = 1
+DEFAULT_PORT = 0
 
-    # initiates a device using its IP and port, should be displayed on LCD display
-    def initDevice(self, deviceIP, devicePort): 
-        self.deviceSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+class SCPSS:
+    # defines the user's socket for recieving data from devices
+    def __init__(self, userIP, deviceIP, devicePort):
+        self.userIP = userIP
         self.deviceIP = deviceIP
         self.devicePort = devicePort
-        # send user socket
-        self.deviceSocket.sendto(self.initMsg, (self.deviceIP, self.devicePort))
-        #### this part gets tricky, need to wait on reply from device
 
+        # create socket, get any open port by using port 0
+        self.mySocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.mySocket.bind((self.userIP,DEFAULT_PORT))
+        self.mySocket.settimeout(TIMEOUT_VAL)
+        self.userPort = self.mySocket.getsockname()[1]
+
+        # send initial msg until a response is given from the device, retry 5 times
+        retry = 0
+        while True:
+            self.mySocket.sendto(b"Hello", (self.deviceIP,self.devicePort))
+            try:
+                data, addr = self.mySocket.recvfrom(1024)
+            except socket.timeout:
+                print("Timed out: try #", retry)
+                retry += 1
+                if retry > 5:
+                    print("Unable to establish communication. Ensure device is on and displaying IP and Port.")
+                    self.mySocket.close()
+                    break
+
+
+    def close(self):
+        self.mySocket.close()
