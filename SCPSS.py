@@ -11,36 +11,23 @@ NOTE : all IPs are strings and all port are ints, this matters for using both th
 
 import socket 
 
-TIMEOUT_VAL = 1
-DEFAULT_PORT = 0
 
 class SCPSS:
     # defines the user's socket for recieving data from devices
-    def __init__(self, userIP, deviceIP, devicePort):
-        self.userIP = userIP
+    def __init__(self, deviceIP, devicePort):
         self.deviceIP = deviceIP
         self.devicePort = devicePort
+        self.initMsg = b"Hello"
+        self.endMsg = b"End"
 
-        # create socket, get any open port by using port 0
-        self.mySocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.mySocket.bind((self.userIP,DEFAULT_PORT))
-        self.mySocket.settimeout(TIMEOUT_VAL)
-        self.userPort = self.mySocket.getsockname()[1]
+        # create a TCP/IP socket, and connect to device. 
+        self.mySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.mySocket.connect((deviceIP,devicePort))
+        self.mySocket.send(self.initMsg)
 
-        # send initial msg until a response is given from the device, retry 5 times
-        retry = 0
-        while True:
-            self.mySocket.sendto(b"Hello", (self.deviceIP,self.devicePort))
-            try:
-                data, addr = self.mySocket.recvfrom(1024)
-            except socket.timeout:
-                print("Timed out: try #", retry)
-                retry += 1
-                if retry > 5:
-                    print("Unable to establish communication. Ensure device is on and displaying IP and Port.")
-                    self.mySocket.close()
-                    break
-
+    def cmd(self, msg):
+        self.mySocket.send(b"cmd")
 
     def close(self):
+        self.mySocket.send(self.endMsg)
         self.mySocket.close()
