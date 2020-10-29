@@ -10,24 +10,23 @@ NOTE : all IPs are strings and all port are ints, this matters for using both th
 '''
 
 import socket 
+import time
 
+getMilliSecs = lambda : int(round(time.time() * 1000))
 
 class SCPSS:
     # defines the user's socket for recieving data from devices
     def __init__(self, deviceIP, devicePort):
         self.deviceIP = deviceIP
         self.devicePort = devicePort
-        self.initMsg = b"Hello"
-        self.endMsg = b"End"
 
         # create a TCP/IP socket, and connect to device. 
         self.mySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.mySocket.connect((deviceIP,devicePort))
-        self.mySocket.send(self.initMsg)
 
+    # send a string with M
     def cmd(self, msg):
-        self.mySocket.send(b"cmd")
+        self.mySocket.send(bytes('M' + str(msg).lower() + 'T' + str(getMilliSecs()) + 'E','utf-8'))
 
     def close(self):
-        self.mySocket.send(self.endMsg)
         self.mySocket.close()
