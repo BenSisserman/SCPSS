@@ -23,10 +23,58 @@ class SCPSS:
         # create a TCP/IP socket, and connect to device. 
         self.mySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.mySocket.connect((deviceIP,devicePort))
+        
+        # The allows to create time stamps for when messages are sent, but without using values as large as system time
+        self.startTime = getMilliSecs()
+
+        # initialze the time difference between device and host
+        self.setTimeDifference()
+
 
     # send a string with M
-    def cmd(self, msg):
-        self.mySocket.send(bytes('M' + str(msg).lower() + 'T' + str(getMilliSecs()) + 'E','utf-8'))
+    def sendStringWithTime(self, msg):
+        self.mySocket.send(bytes(str(msg).lower() + 'E' + str(self.getTime()) + 'E','utf-8'))
 
-    def close(self):
+    def sendTime(self):
+        self.mySocket.send(bytes(str(self.getTime()) + 'E','utf-8'))
+
+    def closePort(self):
         self.mySocket.close()
+
+    # TO DO
+    def turnOn(self):
+        pass
+
+    def turnOff(self):
+        pass
+
+    def timer(self):
+        pass
+
+    def setLatency(self):
+        pass
+    
+    def setWiFi(self,SSID,PASS):
+        pass
+
+    def getTime(self):
+        return getMilliSecs() - self.startTime
+
+    # Function called during initialization for esp32s2 to calculate time difference between machines
+    def setTimeDifference(self):
+        
+        # send small msg with timestamp 10 times to the esp 32
+        for i in range(10):
+            self.sendTime()
+        
+        # esp32 will store minimum of those 10 - may need to increase this value
+        # now recieve timestamp from esp32 10 times
+        
+        # how recieve from server?
+        
+        # for each calcualte difference with current time
+        # send the minimum value back
+        
+        
+
+        
