@@ -9,8 +9,8 @@ uint port = 8888;
 WiFiServer server(port);
 WiFiClient host;
 
-const char* ssid = "RockoNet";
-const char* password = "Sasroc0882!";
+const char* ssid = "apple";
+const char* password = "ls951208";
 
 // list of states, the number given to a state correlates by index to a meaning in this array
 const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};

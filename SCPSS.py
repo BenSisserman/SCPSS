@@ -62,10 +62,10 @@ class SCPSS:
 
     # Function called during initialization for esp32s2 to calculate time difference between machines
     def setTimeDifference(self):
-        
+        pass
         # send small msg with timestamp 10 times to the esp 32
-        for i in range(10):
-            self.sendTime()
+        # for i in range(10):
+        #     self.sendTime()
         
         # esp32 will store minimum of those 10 - may need to increase this value
         # now recieve timestamp from esp32 10 times
@@ -74,7 +74,3 @@ class SCPSS:
         
         # for each calcualte difference with current time
         # send the minimum value back
-        
-        
-
-        
