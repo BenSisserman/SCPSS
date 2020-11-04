@@ -1,5 +1,5 @@
 #include <WiFi.h>
-
+#include <ESP32Servo.h>
 
 #define BUF_SIZE 128
 #define END_MSG 'E'
@@ -29,6 +29,13 @@ char  rx_msg[BUF_SIZE];
 char  in_byte;
 long  rx_time;
 
+//Initialize Servo object and Servo Motor GPIO Pin Number
+Servo servo;
+int servo_pin = 1;
+int pos = 0;
+ESP32PWM pwm;
+int minUs = 1000;
+int maxUs = 2000;
 
 void setup() {
   // connect to wifi network
@@ -52,10 +59,16 @@ void setup() {
   Serial.println("Server set up.");
   Serial.print("IP after server init:");
   Serial.println(WiFi.localIP());
+
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  servo.setPeriodHertz(200);
 }
 
 void loop() {
-
+  
   while(state < 2){
     Serial.println("Waiting for TCP connection...");
     Serial.print("IP: ");
@@ -73,10 +86,23 @@ void loop() {
     delay(200);
     }
   Serial.println("Client found!");
-  
 
+  servo.attach(servo_pin, minUs, maxUs);
+  pwm.attachPin(37, 10000);
+  for(pos = 0; pos <= 180; pos += 1){
+    Serial.print("moving1\n");
+    servo.write(pos);
+    delay(1000);
+    }
+  for(pos = 180; pos >= 0; pos -= 1){
+    Serial.print("moving2\n");
+    servo.write(pos);
+    delay(1000);
+    }
+  
   // listen for msg from client while a connection is maintained
   while(host.connected()){
+    
     // first get string msg
     recv_msg();
     strcpy(rx_msg,rx_buf);  

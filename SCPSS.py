@@ -29,8 +29,7 @@ class SCPSS:
 
         # initialze the time difference between device and host
         self.setTimeDifference()
-
-
+    
     # send a string with M
     def sendStringWithTime(self, msg):
         self.mySocket.send(bytes(str(msg).lower() + 'E' + str(self.getTime()) + 'E','utf-8'))
