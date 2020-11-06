@@ -1,16 +1,15 @@
 #include <WiFi.h>
-
+#include <LiquidCrystal_I2C.h>
 
 #define BUF_SIZE 128
 #define END_MSG 'E'
-
 
 uint port = 8888;
 WiFiServer server(port);
 WiFiClient host;
 
-const char* ssid = "RockoNet";
-const char* password = "Sasroc0882!";
+const char* ssid = "BenPhone";
+const char* password = "rocko2323";
 
 // list of states, the number given to a state correlates by index to a meaning in this array
 const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};
@@ -33,21 +32,22 @@ long  rx_time;
 void setup() {
   // connect to wifi network
   Serial.begin(115200);
-  WiFi.begin(ssid,password);
+  WiFi.begin(ssid, password);
+  
 
-  while(WiFi.status() != WL_CONNECTED){
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print("Connecting to Wifi network: ");
     Serial.println(ssid);
-    }
+  }
 
   state++;
   Serial.println("Success!");
   Serial.print("IP : ");
   Serial.println(WiFi.localIP());
-  
+
   // set up a server for tcp communication
-  
+
   server.begin();
   Serial.println("Server set up.");
   Serial.print("IP after server init:");
@@ -56,30 +56,31 @@ void setup() {
 
 void loop() {
 
-  while(state < 2){
+  while (state < 2) {
     Serial.println("Waiting for TCP connection...");
     Serial.print("IP: ");
     Serial.println(WiFi.localIP());
-    
-    if (server.hasClient()) { 
+
+    if (server.hasClient()) {
       if (host.connected()) {
         server.available().stop();
-        }
+      }
       else {
         host = server.available();
         state = 2;
-        }
       }
-    delay(200);
     }
+    delay(200);
+  }
   Serial.println("Client found!");
-  
+
 
   // listen for msg from client while a connection is maintained
-  while(host.connected()){
+  /////// EDIT THIS WHILE LOOP FOR TESTING
+  while (host.connected()) {
     // first get string msg
     recv_msg();
-    strcpy(rx_msg,rx_buf);  
+    strcpy(rx_msg, rx_buf);
 
     // get time stamp
     recv_msg();
@@ -102,78 +103,74 @@ void loop() {
 
 //////  IN PROGRESS
 /*
- * DESC: Function calculates the approximate time difference between the ESP and
- * the host machine. This is doen by receiveing 10 timestamps from the host, calculating
- * t1 for each where t1 = currTime - timestamp, and maintaining the minimal t1
- * The same is then repeated in the other direction by sending 10 timestamps to the 
- * host, and receiving t2 from th host. Finally timeDiff = t2 - t1/2
- * RETURN: retuns the interger time difference in milliseconds
- */
-int getTimeDifference(){
-    int i = 0;
-    int curTime;
-    int timestamp;
-    int t1 = INT_MAX;
-    int t2 = INT_MAX;
-    int temp;
-    buf_cur = 0;
-    
-    while(host.connected()){
-      if (host.available()){
-        in_byte = host.read();
+   DESC: Function calculates the approximate time difference between the ESP and
+   the host machine. This is doen by receiveing 10 timestamps from the host, calculating
+   t1 for each where t1 = currTime - timestamp, and maintaining the minimal t1
+   The same is then repeated in the other direction by sending 10 timestamps to the
+   host, and receiving t2 from th host. Finally timeDiff = t2 - t1/2
+   RETURN: retuns the interger time difference in milliseconds
+*/
+int getTimeDifference() {
+  int i = 0;
+  int curTime;
+  int timestamp;
+  int t1 = INT_MAX;
+  int t2 = INT_MAX;
+  int temp;
+  buf_cur = 0;
 
-        if (in_byte != 'E')
-          rx_buf[buf_cur++] = in_byte; 
-        else{
-          rx_buf[buf_cur++] = '\0';
-          timestamp = atoi(rx_buf);
-          // calculate t1, compare to previous value
-          }
-        
-        if (buf_cur >= BUF_SIZE)
-          buf_cur = 0;         
-        } 
-      if(i >= 10)
-        break;
+  while (host.connected()) {
+    if (host.available()) {
+      in_byte = host.read();
+
+      if (in_byte != 'E')
+        rx_buf[buf_cur++] = in_byte;
+      else {
+        rx_buf[buf_cur++] = '\0';
+        timestamp = atoi(rx_buf);
+        // calculate t1, compare to previous value
       }
-    return 0;
+
+      if (buf_cur >= BUF_SIZE)
+        buf_cur = 0;
+    }
+    if (i >= 10)
+      break;
   }
+  return 0;
+}
 
 //////// IN TESTING
 /*
- * DESC: Function abstracts reciving msgs from the the client. Will populate global rx_buf
- * This function terminates and returns when rx_buf is overflowed or found the 'E' terminating 
- */
-void recv_msg(){
+   DESC: Function abstracts reciving msgs from the the client. Will populate global rx_buf
+   This function terminates and returns when rx_buf is overflowed or found the 'E' terminating
+*/
+void recv_msg() {
   char in_byte;
   buf_cur = 0;
-
   // check that host is connected
-  while(host.connected()){
+  while (host.connected()) {
     // check that a new msg is available
-    if (host.available()){
+    if (host.available()) {
       // check buffer overflow
-      if(buf_cur >= BUF_SIZE){
+      if (buf_cur >= BUF_SIZE) {
         Serial.println("RX BUFFER OVERFLOW");
         break;
-        } 
-
+      }
       // read one byte at a time
       in_byte = host.read();
-
       // if terminated add the null terminator to the buf and return
-      if (in_byte == END_MSG){
+      if (in_byte == END_MSG) {
         rx_buf[buf_cur++] = '\0';
         break;
-        }
-
+      }
       // else add to the buffer
       else
-         rx_buf[buf_cur++] = in_byte;
-      }
-      // delay before next check to avoid crashes
-      else
-        delay(1);
+        rx_buf[buf_cur++] = in_byte;
     }
-    return;
+    // delay before next check to avoid crashes
+    else
+      delay(1);
   }
+  return;
+}

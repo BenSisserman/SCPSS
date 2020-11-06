@@ -28,7 +28,7 @@ class SCPSS:
         self.startTime = getMilliSecs()
 
         # initialze the time difference between device and host
-        self.setTimeDifference()
+        # self.setTimeDifference()
 
 
     # send a string with M
@@ -48,10 +48,11 @@ class SCPSS:
     def turnOff(self):
         pass
 
-    def timer(self):
-        pass
 
     def setLatency(self):
+        pass
+
+    def measureLatency(self):
         pass
     
     def setWiFi(self,SSID,PASS):
@@ -60,12 +61,19 @@ class SCPSS:
     def getTime(self):
         return getMilliSecs() - self.startTime
 
+    # EXTRA
+    def timer(self):
+        pass
+
+    
+    
+    # TO DO
     # Function called during initialization for esp32s2 to calculate time difference between machines
     def setTimeDifference(self):
-        
+        pass
         # send small msg with timestamp 10 times to the esp 32
-        for i in range(10):
-            self.sendTime()
+        #for i in range(10):
+        #    self.sendTime()
         
         # esp32 will store minimum of those 10 - may need to increase this value
         # now recieve timestamp from esp32 10 times
