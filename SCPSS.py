@@ -31,23 +31,24 @@ class SCPSS:
         # self.setTimeDifference()
 
 
-    # send a string with M
+    # send a string with C for command code, T for time, E for end
     def sendStringWithTime(self, msg):
-        self.mySocket.send(bytes(str(msg).lower() + 'E' + str(self.getTime()) + 'E','utf-8'))
+        self.mySocket.send(bytes('C' + str(msg).lower() + 'E' + 'T' + str(self.getTime()) + 'E','utf-8'))
 
     def sendTime(self):
-        self.mySocket.send(bytes(str(self.getTime()) + 'E','utf-8'))
+        self.mySocket.send(bytes('T' + str(self.getTime()) + 'E','utf-8'))
 
     def closePort(self):
         self.mySocket.close()
 
-    # TO DO
-    def turnOn(self):
-        pass
-
-    def turnOff(self):
-        pass
-
+    # on and off functions, turn on for a 1, next number sets which relay from 0 to 3
+    # other devices ignore the second number
+    def turnOn(self, relayNum=0):
+        self.sendStringWithTime("1" + str(relayNum))
+    
+    # turn off by sending 0 and relay number 
+    def turnOff(self, relayNum=0):
+        self.sendStringWithTime("0" + str(relayNum))
 
     def setLatency(self):
         pass
