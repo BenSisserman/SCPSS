@@ -1,5 +1,4 @@
 #include <WiFi.h>
-#include <LiquidCrystal_I2C.h>
 
 #define BUF_SIZE 128
 #define END_MSG 'E'
@@ -8,8 +7,8 @@ uint port = 8888;
 WiFiServer server(port);
 WiFiClient host;
 
-const char* ssid = "BenPhone";
-const char* password = "rocko2323";
+const char* ssid = "A.FamilyWifi";
+const char* password = "fifty3489cactus";
 
 // list of states, the number given to a state correlates by index to a meaning in this array
 const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};

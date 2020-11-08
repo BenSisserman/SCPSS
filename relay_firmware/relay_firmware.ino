@@ -1,36 +1,58 @@
-#include <SPI.h>
 #include <WiFi.h>
+#include <SPI.h>
 
-// buffer size for recieving TCP terminating character
-#define BUF_SIZE    128
-#define END_MSG     'E'
-#define TIME_MSG    'T'
-#define CMD_MSG     'C'
-#define CONFIG_MSG  '!'
+#define BUF_SIZE 128
+#define END_MSG   'E'
+#define CMD_MSG   'C'
+#define TIME_MSG  'T'
 
-// pins for SPI on LCD
+// lcd defines
+//////// PINS FOR ESP32S2 to LCD
+/*
+ * Pin 4 => SCK
+ * Pin 5 => SDO
+ * Pin 6 => SDI
+ * Pin 7 => CS
+ */
 #define VSPI FSPI   // unclear what this is.....
 #define VSPI_MISO   5
 #define VSPI_MOSI   6
 #define VSPI_SCLK   4
 #define VSPI_SS     7
 #define SCR_WIDTH   16
-#define RELAY0      0
-#define RELAY1      1
-#define RELAY2      2
-#define RELAY3      3
+#define LCD_SIZE    32
+
+// pins for relay board
+#define relay0      0
+#define relay1      1
+#define relay2      2
+#define relay3      3
+
+void init_lcd();
+void clear_screen();
+void print_lcd(const char* msg, bool clear_buf = true);
+void setBacklight(uint8_t R, uint8_t G, uint8_t B);
+
+// data for lcd using SPI
+SPIClass * vspi = NULL;
+char cur_color = 0;
 
 uint port = 8888;
 WiFiServer server(port);
 WiFiClient host;
 
-const char* ssid = "BenPhone";
-const char* password = "rocko2323";
+const char* ssid = "A.FamilyWifi";
+const char* password = "fifty3489cactus";
 
 // list of states, the number given to a state correlates by index to a meaning in this array
 const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};
 // list of possible commands during OPERATIONAL state, should compare input to commands when deciding response
 const String cmds[4] = {"set_wifi", "on", "off", "reboot"};
+
+// function prototypes
+int init_tcp_connect();
+char recv_msg();
+String ip2string(IPAddress ip);
 
 // glolbal variables
 int   state = 0;
@@ -38,40 +60,19 @@ int   buf_cur = 0;
 int   iter;
 char  rx_buf[BUF_SIZE];
 char  rx_msg[BUF_SIZE];
-char  ip_arr[13];
 char  in_byte;
 long  rx_time;
 
-
-// function prototypes for TCP communication
-int init_tcp_connect();
-char recv_msg();
-
-// function prototypes for LCD interface
-void init_lcd();
-void clear_screen();
-void print_all(char* data, bool clear_scr = true);    // print to all screen from start, set whether to clear rest of screen
-void println1(char* data, bool keepln2 = true);       // print to line 1, set whether to overwrite the 2nd line
-void println2(char* data, bool keepln1 = true);       // print the line 2, set whether to overwrite the 1st line
-void setBacklight(uint8_t R, uint8_t G, uint8_t B);   // set background color using RGB values
-void IpAddress2String(char* ip,const IPAddress& ipAddress); // convert IP address to a char array
-
-
-// data for lcd using SPI, DO NOT EDIT OUTSIDE OF 
-SPIClass * vspi = NULL;
-char line1[SCR_WIDTH];
-char line2[SCR_WIDTH];
-uint8_t ln1_len = 0;
-uint8_t ln2_len = 0; 
-char cur_color = 0;
 
 void setup() {
   // connect to wifi network
   Serial.begin(115200);
   WiFi.begin(ssid, password);
-
-  print_all((char*)"Connecting to WiFi...");
   
+  // initiate lcd spi interface
+  init_lcd();
+
+  print_lcd("Connecting to WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print("Connecting to Wifi network: ");
@@ -79,34 +80,44 @@ void setup() {
   }
 
   state++;
-  Serial.println("WiFi Connected!");
+  Serial.println("Success!");
+  Serial.print("IP : ");
+  Serial.println(WiFi.localIP());
 
-  // get ip
-  IpAddress2String(ip_arr, WiFi.localIP());
-  
+  print_lcd("WiFi Connected!");
+
   // set up a server for tcp communication
+
   server.begin();
   Serial.println("Server set up.");
   Serial.print("IP after server init:");
   Serial.println(WiFi.localIP());
 
-  pinMode(RELAY0, OUTPUT);
-  pinMode(RELAY1, OUTPUT);
-  pinMode(RELAY2, OUTPUT);
-  pinMode(RELAY3, OUTPUT);
-  digitalWrite(RELAY0,HIGH);
-  digitalWrite(RELAY1,HIGH);
-  digitalWrite(RELAY2,HIGH);
-  digitalWrite(RELAY3,HIGH);
+  // pin modes and set up for relay
+  pinMode(relay0,OUTPUT);
+  pinMode(relay1,OUTPUT);
+  pinMode(relay2,OUTPUT);
+  pinMode(relay3,OUTPUT);
+
+  digitalWrite(relay0, HIGH);
+  digitalWrite(relay1, HIGH);
+  digitalWrite(relay2, HIGH);
+  digitalWrite(relay3, HIGH);
 }
 
-
 void loop() {
+
   
-  println1(ip_arr);
-  println2((char*)"8888");
   
+  // while loop waits for TCP connection, exits loop when connected
   while (state < 2) {
+    String ip_str = ip2string(WiFi.localIP()); 
+    print_lcd("IP: ");
+    print_lcd(ip_str.c_str(),false);
+    print_lcd("   ",false);
+      
+    print_lcd("PORT: ",false);
+    print_lcd(((String)port).c_str(), false);
     Serial.println("Waiting for TCP connection...");
     Serial.print("IP: ");
     Serial.println(WiFi.localIP());
@@ -123,32 +134,40 @@ void loop() {
     delay(200);
   }
   Serial.println("Client found!");
-
+  print_lcd("TCP Connected!");
 
   // listen for msg from client while a connection is maintained
   /////// EDIT THIS WHILE LOOP FOR TESTING
+  
+  print_lcd("Listening for commands...");
   while (host.connected()) {
+
     // first get string msg
     char msg_type = recv_msg();
     
-    if (msg_type == CMD_MSG || msg_type == CONFIG_MSG){
+    if (msg_type == CMD_MSG){
       strcpy(rx_msg, rx_buf);
-      
-      // activate the relay - active low
-      if(rx_msg[0] == '1')
-        digitalWrite((int)(rx_msg[1] - '0'), LOW);
 
-      // deactivate relay
-      else if(rx_msg[0] == '0')
-        digitalWrite((int)(rx_msg[1] - '0'), HIGH);
+      Serial.println(rx_msg);
+    
+      // turn on or off relays by first char, relay number from second char
+      if(rx_msg[1] == '1'){
+        digitalWrite((int)(rx_msg[2] - '0'), LOW);
+        print_lcd("relay ");
+        print_lcd(((String)rx_msg[2]).c_str(),false);
+        print_lcd(" on",false);
+        }
+      else if(rx_msg[1] == '0'){
+        digitalWrite((int)(rx_msg[2] - '0'), HIGH);
+        print_lcd("relay ");
+        print_lcd(((String)rx_msg[2]).c_str(),false);
+        print_lcd(" off",false);
+        }
     }
-      
+
+    // get time stamp
     else if (msg_type == TIME_MSG)
       rx_time = atoi(rx_buf);
-    else{
-      Serial.print("unknown msg: ");
-      Serial.println(rx_buf);
-    }
 
     Serial.print("msg: ");
     Serial.println(rx_msg);
@@ -164,16 +183,14 @@ void loop() {
   state = 1;
 }
 
-
 /*
    DESC: Function abstracts reciving msgs from the the client. Will populate global rx_buf
    This function terminates and returns when rx_buf is overflowed or found the 'E' terminating
 */
 char recv_msg() {
   char in_byte;
-  char msg_type = '\0';
+  char msg_type = '0';
   buf_cur = 0;
-  
   // check that host is connected
   while (host.connected()) {
     // check that a new msg is available
@@ -185,12 +202,11 @@ char recv_msg() {
       }
       // read one byte at a time
       in_byte = host.read();
-
-      if (in_byte == TIME_MSG || in_byte == CMD_MSG || in_byte == CONFIG_MSG)
-        msg_type = in_byte;
       
+      if (in_byte == CMD_MSG || in_byte == TIME_MSG)
+        msg_type = in_byte;
       // if terminated add the null terminator to the buf and return
-      else if (in_byte == END_MSG) {
+      if (in_byte == END_MSG) {
         rx_buf[buf_cur++] = '\0';
         break;
       }
@@ -206,11 +222,9 @@ char recv_msg() {
 }
 
 
-/* 
- *  function initialies the SPI object to transmit to LCD
- *  Uses global vspi pointer and predefined pins instead of default SPI
- *  Also sets the SS - Slave select at the predefined pin as OUTPUT
- */
+
+// function initialies the SPI object to transmit to LCD
+// Uses global vspi pointer
 void init_lcd(){
   vspi = new SPIClass(VSPI);
   vspi->begin(VSPI_SCLK, VSPI_MISO, VSPI_MOSI, VSPI_SS); 
@@ -222,135 +236,46 @@ void init_lcd(){
   vspi->endTransaction();
 }
 
-// function clears the entire screen and sets cursor to 0
+
 void clear_screen(){
   digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
   // need to let LCD move to setting mode before clearing screen, hence the delay
   vspi->transfer('|'); //Put LCD into setting mode
-  delay(1);
+  delay(5);
   vspi->transfer('-'); //Send clear display command
-  delay(1);
+  delay(5);
   digitalWrite(VSPI_SS, HIGH); //Release the CS pin to de-select OpenLCD
   //vspi->endTransaction();
 }
 
-
-//Sends a string over SPI to the first line, by defualt keeps line 2
-void println1(char* data, bool keepln2){
-  uint8_t len;
-  int i;
-  bool new_data = false;
-  
-  clear_screen();
-  delay(1);
-  
-  // find length of string while also checking if string is equivalent
-  for(len = 0; len < 16; len++){
-    if (data[len] != line1[len])
-      new_data = true;
-    if (data[len] == '\0')
-      break;
-  }
-
-  if (!new_data)
-    return;
-  
-  ln1_len = len;
-  
-  digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
-  
-  for(i = 0 ; i < len ; i++){ //Send chars until we hit the end of the string
-    vspi->transfer(data[i]);
-    line1[i] = data[i];
-    delay(1);
-  }
-  
-  if (keepln2){
-    for(i = ln1_len; i < SCR_WIDTH; i++)
-        vspi->transfer(' ');
-    for(i = 0; i < ln2_len; i++)
-        vspi->transfer(line2[i]);
-    }
- 
-  digitalWrite(VSPI_SS, HIGH); //Release the CS pin to de-select OpenLCD
-  //vspi->endTransaction();
-}
-
-// write string at line 2, by defualt keep line 1
-void println2(char* data, bool keepln1){
-  uint8_t len;
-  int i;
-  bool new_data = false;
-  
-  clear_screen();
-
-  // get length of data 
-  for(len = 0; len < 16; len++){
-    if (data[len] != line2[len])
-      new_data = true;
-    if (data[len] == '\0')
-      break;  
-  }
-
-  if (!new_data)
-    return;
-  
-  ln2_len = len;
-  
-  digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
-
-  // write the first 16 bits
-  if(keepln1){
-    // print line
-    for(i = 0 ; i < ln1_len ; i++){ //Send chars until we hit the end of the string
-      vspi->transfer(line1[i]);
-      delay(1);
-    }
-    // print spaces
-    for(i = ln1_len; i < SCR_WIDTH; i++){
-      vspi->transfer(' ');
-      delay(1);
-      }
-  }
-  // overwrite the first line with spaces
-  else {
-    for(i = 0; i < SCR_WIDTH; i++){
-      vspi->transfer(' ');
-      delay(1);
-      }
-    }
-  for(i = 0 ; i < ln2_len ; i++){ //Send chars until we hit the end of the string
-    vspi->transfer(data[i]);
-    delay(1);
-  }
-  
-  digitalWrite(VSPI_SS, HIGH); //Release the CS pin to de-select OpenLCD
-  //vspi->endTransaction();
-}
 
 // print all string to screen, by defualt clears existing screen
-void print_all(char* data, bool clear_scr){
+void print_lcd(const char* msg, bool clear_buf){
+  int i;
   int len;
   
-  if (clear_scr)
+  // clear the screen and reset the length of the buffer  
+  if (clear_buf){
     clear_screen();
+  }
+
+  for(i = 0; i < LCD_SIZE; i++){
+    if (msg[i] == '\0')
+      break;
+    }
+  len = i;
   
-  for(len = 0; len < 32; len++)
-    if (data[len] == '\0')
-      break;  
-  
-  digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
-  
-  for(int x = 0 ; x < len ; x++){ //Send chars until we hit the end of the string
-    vspi->transfer(data[x]);
+  //Drive the CS pin low to select OpenLCD
+  digitalWrite(VSPI_SS, LOW); 
+  // display buffer
+  for(i = 0; i < len; i++){
+    vspi->transfer(msg[i]);
     delay(1);
   }
-  
   digitalWrite(VSPI_SS, HIGH); //Release the CS pin to de-select OpenLCD
   //vspi->endTransaction();
 }
 
-// set backlight color using RGB values, 0 - 255 for each color
 void setBacklight(uint8_t R, uint8_t G, uint8_t B){
   
   // enable CS
@@ -377,13 +302,12 @@ void setBacklight(uint8_t R, uint8_t G, uint8_t B){
   return;
 }
 
-void IpAddress2String(char* ip, const IPAddress& ipAddress)
-{
-  String temp =  "IP:" + String(ipAddress[0]) + String(".") +\
-  String(ipAddress[1]) + String(".") +\
-  String(ipAddress[2]) + String(".") +\
-  String(ipAddress[3]);
-
-  for(int i = 0; i < 13; i++)
-    ip[i] = temp[i];
-}
+String ip2string(IPAddress ip){
+  String ip_str = "";
+  for(int i = 0; i < 4; i++){
+    ip_str = ip_str + (String)ip[i];
+    if (i != 3)
+      ip_str = ip_str + ".";
+    }
+    return ip_str;
+  }
