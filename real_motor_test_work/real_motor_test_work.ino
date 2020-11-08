@@ -9,7 +9,7 @@
 const int servo_pin = 1; 
 
 //// setting PWM properties
-const int freq = 4000;
+const int freq = 5000;
 const int ledChannel = 0;
 const int resolution = 8;
  
@@ -20,11 +20,11 @@ void setup(){
 }
  
 void loop(){
-  for(int pos = 0; pos <= 180; pos++){   
+  for(int pos = 0; pos <= 255; pos++){   
     ledcWrite(ledChannel, pos);
     delay(15);
   }
-  for(int pos = 180; pos >= 0; pos--){
+  for(int pos = 255; pos >= 0; pos--){
     ledcWrite(ledChannel, pos);   
     delay(15);
   }
