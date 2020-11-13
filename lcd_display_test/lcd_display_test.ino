@@ -90,23 +90,16 @@ void setup()
 
 void loop() 
 {
-  cycles++; //Counting cycles
-
   //Send the clear display command to the display - this forces the cursor to return to the beginning of the display
-  
   clear_screen();
-
-  char tempString[50]; //Needs to be large enough to hold the entire string with up to 5 digits
-  sprintf(tempString, "cycles:%d", cycles);
   
+  // print hello with clear screen, and then goodbye without clear screen
   print_lcd("Hello, ");
   delay(1000);
   print_lcd("Goodbye!", false);
   
-  //delay(1000);
 
-  //print_all("hello");
-
+  // cycle through colors for the backlight
   if(cycles < 100 && cur_color != 'R'){
     setBacklight(255,0,0);
     cur_color = 'R';
@@ -142,6 +135,7 @@ void init_lcd(){
 }
 
 
+// clear the lcd display and reset cursor
 void clear_screen(){
   digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
   // need to let LCD move to setting mode before clearing screen, hence the delay
@@ -153,87 +147,8 @@ void clear_screen(){
   //vspi->endTransaction();
 }
 
-//
-// //Sends a string over SPI
-//void println1(char* data, bool keepln2){
-//  uint8_t len;
-//  int i;
-//  
-//  clear_screen();
-//  delay(1);
-//  
-//  // find length of string
-//  for(len = 0; len < 16; len++)
-//    if (data[len] == '\0')
-//      break;  
-//  
-//  ln1_len = len;
-//  
-//  digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
-//  
-//  for(i = 0 ; i < len ; i++){ //Send chars until we hit the end of the string
-//    vspi->transfer(data[i]);
-//    line1[i] = data[i];
-//    delay(1);
-//  }
-//  
-//  if (keepln2){
-//    for(i = ln1_len; i < SCR_WIDTH; i++)
-//        vspi->transfer(' ');
-//    for(i = 0; i < ln2_len; i++)
-//        vspi->transfer(line2[i]);
-//    }
-// 
-//  digitalWrite(VSPI_SS, HIGH); //Release the CS pin to de-select OpenLCD
-//  //vspi->endTransaction();
-//}
 
-//void println2(char* data, bool keepln1){
-//  uint8_t len;
-//  int i;
-//  
-//  clear_screen();
-//
-//  // get length of data 
-//  for(len = 0; len < 16; len++)
-//    if (data[len] == '\0')
-//      break;  
-//
-//  ln2_len = len;
-//  
-//  digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
-//
-//  // write the first 16 bits
-//  if(keepln1){
-//    // print line
-//    for(i = 0 ; i < ln1_len ; i++){ //Send chars until we hit the end of the string
-//      vspi->transfer(line1[i]);
-//      delay(1);
-//    }
-//    // print spaces
-//    for(i = ln1_len; i < SCR_WIDTH; i++){
-//      vspi->transfer(' ');
-//      delay(1);
-//      }
-//  }
-//  // overwrite the first line with spaces
-//  else {
-//    for(i = 0; i < SCR_WIDTH; i++){
-//      vspi->transfer(' ');
-//      delay(1);
-//      }
-//    }
-//    
-//  for(i = 0 ; i < ln2_len ; i++){ //Send chars until we hit the end of the string
-//    vspi->transfer(data[i]);
-//    delay(1);
-//  }
-//  
-//  digitalWrite(VSPI_SS, HIGH); //Release the CS pin to de-select OpenLCD
-//  //vspi->endTransaction();
-//}
-
-// print all string to screen, by defualt clears existing screen
+// print string to screen, by defualt clears existing screen
 void print_lcd(const char* msg, bool clear_buf){
   int i;
   int len;

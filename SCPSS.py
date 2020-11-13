@@ -22,6 +22,7 @@ class SCPSS:
 
         # create a TCP/IP socket, and connect to device. 
         self.mySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.mySocket.settimeout(5)
         self.mySocket.connect((deviceIP,devicePort))
         
         # The allows to create time stamps for when messages are sent, but without using values as large as system time
@@ -66,7 +67,10 @@ class SCPSS:
     def timer(self):
         pass
 
-    
+    def getMsg(self):
+        msg = self.mySocket.recv(1024)
+        time = int.from_bytes(msg,byteorder='little', signed=False)
+        print(time)
     
     # TO DO
     # Function called during initialization for esp32s2 to calculate time difference between machines
