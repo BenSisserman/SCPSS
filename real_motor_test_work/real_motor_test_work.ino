@@ -20,11 +20,11 @@ void setup(){
 }
  
 void loop(){
-  for(int pos = 0; pos <= 255; pos++){   
+  for(int pos = 0; pos <= 50; pos++){   
     ledcWrite(ledChannel, pos);
     delay(15);
   }
-  for(int pos = 255; pos >= 0; pos--){
+  for(int pos = 50; pos >= 0; pos--){
     ledcWrite(ledChannel, pos);   
     delay(15);
   }

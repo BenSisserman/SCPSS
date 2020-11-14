@@ -312,14 +312,15 @@ String ip2string(IPAddress ip){
   }
 
 void run_motor(){
-  while(true){
-    for(duty_cycle = 0; duty_cycle <= 55; duty_cycle++){
+  while(Serial.available()==0){
+    for(duty_cycle = 0; duty_cycle <= 52; duty_cycle++){
         ledcWrite(ledc_channel, duty_cycle);
         delay(15);
       }
-    for(duty_cycle = 55; duty_cycle >= 0; duty_cycle--){
+    for(duty_cycle = 52; duty_cycle >= 0; duty_cycle--){
         ledcWrite(ledc_channel, duty_cycle);
         delay(15);
       }
+      Serial.read();
     }
   }
