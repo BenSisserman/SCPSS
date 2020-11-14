@@ -39,6 +39,14 @@ class SCPSS:
     def sendTime(self):
         self.mySocket.send(bytes('T' + str(self.getTime()) + 'E','utf-8'))
 
+    # function sends a custom msg
+    # msg_code - Capitalized letter that tells esp how to process msg
+    # msg - any value to send to ESP
+    # note that msgs without valid msg codes are ignored by the esp
+    def sendCustomMsg(self, msg_code, msg):
+        self.mySocket.send(bytes(msg_code + str(msg).lower() + 'E','utf-8'))
+
+
     def closePort(self):
         self.mySocket.close()
 
@@ -67,27 +75,32 @@ class SCPSS:
     def timer(self):
         pass
 
-    def getMsg(self):
+    def getTimeFromEsp(self):
         msg = self.mySocket.recv(1024)
         time = int.from_bytes(msg,byteorder='little', signed=False)
-        print(time)
+        return time
     
     # TO DO
     # Function called during initialization for esp32s2 to calculate time difference between machines
     def setTimeDifference(self):
-        pass
+        # pass
+        # send msg to tell esp that we are setting the time difference
+        self.sendCustomMsg('D','start')
+        
         # send small msg with timestamp 10 times to the esp 32
-        #for i in range(10):
-        #    self.sendTime()
-        
+        for i in range(10):
+            self.sendTime()
+
         # esp32 will store minimum of those 10 - may need to increase this value
+    
         # now recieve timestamp from esp32 10 times
+        times = []
+        for i in range(10):
+            times.append(self.getTime() - self.getTimeFromEsp())
         
-        # how recieve from server?
-        
-        # for each calcualte difference with current time
         # send the minimum value back
-        
+        self.sendCustomMsg('D', min(times))
+
         
 
         

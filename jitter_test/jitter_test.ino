@@ -122,12 +122,15 @@ int getTimeDifference() {
   int i = 0;
   int curTime;
   int timestamp;
+  int t1_arr[10];
   int t1 = INT_MAX;
   int t2 = INT_MAX;
   int temp;
   buf_cur = 0;
 
-  while (host.connected()) {
+  // first get 10 time msgs from the host to populate the t1 array\
+  // edit this to use the recv_msg function
+  while (host.connected() && i < 10) {
     if (host.available()) {
       in_byte = host.read();
 
@@ -136,16 +139,35 @@ int getTimeDifference() {
       else {
         rx_buf[buf_cur++] = '\0';
         timestamp = atoi(rx_buf+1);
+        t1_arr[i++] = millis() - timestamp;
         // calculate t1, compare to previous value
       }
-
       if (buf_cur >= BUF_SIZE)
         buf_cur = 0;
     }
-    if (i >= 10)
-      break;
   }
-  return 0;
+
+  // now find the minimum of the t1_arr and save as t1
+  for(i = 0; i <10;i++)
+    if (t1 < t1_arr[i])
+      t1 = t1_arr[i];
+
+  // now send time back to the host for the host to figure t2
+  for(i = 0; i < 10; i++)
+    send_time();
+
+  // recieve the t2 from host
+  if (char msg_type = recv_msg() == TIME_MSG)
+    t2 = atoi(rx_buf+1);
+  else{
+    Serial.println("ERROR decoding msg, not time msg.");
+    Serial.print("MSG type: ");
+    Serial.println(msg_type);
+    }
+ 
+  // now calculate the time difference
+  
+  return (t2 - t1)/2;
 }
 
 //////// IN TESTING
