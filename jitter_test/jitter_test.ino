@@ -2,18 +2,15 @@
 
 #define BUF_SIZE 128
 #define END_MSG 'E'
+#define CMD_MSG 'C'
+#define TIME_MSG 'T'
 
 uint port = 8888;
 WiFiServer server(port);
 WiFiClient host;
 
-<<<<<<< HEAD
-const char* ssid = "apple";
-const char* password = "ls951208";
-=======
-const char* ssid = "A.FamilyWifi";
-const char* password = "fifty3489cactus";
->>>>>>> a85e6a50ea238385f1400602774c91976c99530a
+const char* ssid = "RockoNet";
+const char* password = "Sasroc0882!";
 
 // list of states, the number given to a state correlates by index to a meaning in this array
 const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};
@@ -22,6 +19,8 @@ const String cmds[4] = {"set_wifi", "on", "off", "reboot"};
 
 // function prototypes
 int init_tcp_connect();
+char recv_msg();
+void send_time();
 
 // glolbal variables
 int   state = 0;
@@ -32,31 +31,6 @@ char  rx_msg[BUF_SIZE];
 char  in_byte;
 long  rx_time;
 
-//servo variables
-const int servo_pin = 1;
-const int freq = 5000;
-const int channel = 0;
-const int resolution = 8;
-const int unsigned long minute = 60000;
-
-void setup_motor(){
-  ledcSetup(channel, freq, resolution);
-  ledcAttachPin(servo_pin, channel);
-}
-  
-void run_motor(){
-  Serial.print("1: 0");
-  for(int duty_cycle = 0; duty_cycle <= 255; duty_cycle++){   
-    ledcWrite(channel, duty_cycle);
-    delay(15);
-  }
-  Serial.print("2: 180");
-  for(int duty_cycle = 255; duty_cycle >= 0; duty_cycle--){
-    ledcWrite(channel, duty_cycle);   
-    delay(15);
-  }
-  Serial.print("3: 0");
-}
 
 void setup() {
   // connect to wifi network
@@ -81,17 +55,11 @@ void setup() {
   Serial.println("Server set up.");
   Serial.print("IP after server init:");
   Serial.println(WiFi.localIP());
-  setup_motor();
 }
 
 void loop() {
-<<<<<<< HEAD
-  
-  while(state < 2){
-=======
 
   while (state < 2) {
->>>>>>> a85e6a50ea238385f1400602774c91976c99530a
     Serial.println("Waiting for TCP connection...");
     Serial.print("IP: ");
     Serial.println(WiFi.localIP());
@@ -108,31 +76,23 @@ void loop() {
     delay(200);
   }
   Serial.println("Client found!");
-<<<<<<< HEAD
-=======
 
->>>>>>> a85e6a50ea238385f1400602774c91976c99530a
 
-  //run motor
-  while(true){
-    run_motor();
-  }
-  
   // listen for msg from client while a connection is maintained
-<<<<<<< HEAD
-  while(host.connected()){
-    
-=======
   /////// EDIT THIS WHILE LOOP FOR TESTING
   while (host.connected()) {
->>>>>>> a85e6a50ea238385f1400602774c91976c99530a
-    // first get string msg
-    recv_msg();
-    strcpy(rx_msg, rx_buf);
 
-    // get time stamp
-    recv_msg();
-    rx_time = atoi(rx_buf);
+    
+    char msg_type = recv_msg();
+    
+    if (msg_type == CMD_MSG){
+      strcpy(rx_msg, rx_buf);
+    } 
+    
+    else if(msg_type == TIME_MSG){
+      rx_time = atoi(rx_buf);
+      send_time();
+    }
 
     Serial.print("msg: ");
     Serial.println(rx_msg);
@@ -148,13 +108,14 @@ void loop() {
   state = 1;
 }
 
+
 //////  IN PROGRESS
 /*
    DESC: Function calculates the approximate time difference between the ESP and
    the host machine. This is doen by receiveing 10 timestamps from the host, calculating
    t1 for each where t1 = currTime - timestamp, and maintaining the minimal t1
    The same is then repeated in the other direction by sending 10 timestamps to the
-   host, and receiving t2 from th host. Finally timeDiff = t2 - t1/2
+   host, and receiving t2 f now install an extension without synchronizing it while settings syncrom th host. Finally timeDiff = t2 - t1/2
    RETURN: retuns the interger time difference in milliseconds
 */
 int getTimeDifference() {
@@ -174,7 +135,7 @@ int getTimeDifference() {
         rx_buf[buf_cur++] = in_byte;
       else {
         rx_buf[buf_cur++] = '\0';
-        timestamp = atoi(rx_buf);
+        timestamp = atoi(rx_buf+1);
         // calculate t1, compare to previous value
       }
 
@@ -192,8 +153,9 @@ int getTimeDifference() {
    DESC: Function abstracts reciving msgs from the the client. Will populate global rx_buf
    This function terminates and returns when rx_buf is overflowed or found the 'E' terminating
 */
-void recv_msg() {
+char recv_msg() {
   char in_byte;
+  char msg_type = '\0';
   buf_cur = 0;
   // check that host is connected
   while (host.connected()) {
@@ -206,8 +168,13 @@ void recv_msg() {
       }
       // read one byte at a time
       in_byte = host.read();
+      
+      if (in_byte == TIME_MSG || in_byte == CMD_MSG){
+        msg_type = in_byte;
+      }
+      
       // if terminated add the null terminator to the buf and return
-      if (in_byte == END_MSG) {
+      else if (in_byte == END_MSG) {
         rx_buf[buf_cur++] = '\0';
         break;
       }
@@ -218,6 +185,20 @@ void recv_msg() {
     // delay before next check to avoid crashes
     else
       delay(1);
+  }
+  return msg_type;
+}
+
+
+void send_time(){
+  unsigned long cur_time = millis();
+  char tx_buf[sizeof(cur_time)];
+  memcpy(tx_buf, &cur_time,sizeof(cur_time));
+  
+  if(host.connected()){
+    host.write(tx_buf, sizeof(cur_time));
+    Serial.print("sent host time: ");
+    Serial.println(cur_time);
   }
   return;
 }
