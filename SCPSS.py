@@ -11,7 +11,6 @@ NOTE : all IPs are strings and all port are ints, this matters for using both th
 
 import socket 
 import time
-import serial
 
 getMilliSecs = lambda : int(round(time.time() * 1000))
 

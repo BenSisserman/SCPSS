@@ -5,6 +5,7 @@
 #define END_MSG   'E'
 #define CMD_MSG   'C'
 #define TIME_MSG  'T'
+#define TURN_OFF  '0'
 
 // lcd defines
 //////// PINS FOR ESP32S2 to LCD
@@ -145,23 +146,47 @@ void loop() {
 
       Serial.println(rx_msg);
     
-      // turn on or off relays by first char, relay number from second char
-      if(rx_msg[1] == '1'){
+      // turn on or off servo by first char
+
+      if(rx_msg[1]=='1'){
         print_lcd("servo ");
-        //print_lcd(((String)rx_msg[2]).c_str(),false);
         print_lcd("Turned on",false);
+        
         motor_state = true;
-        run_motor();
-       }
-      else if(rx_msg[1] == '0'){
-        Serial.println("received turn off");
-        motor_state = false;
-        digitalWrite(servo_pin, LOW);
-        Serial.println("should done turn off");
-        print_lcd("servo ");
-        //print_lcd(((String)rx_msg[2]).c_str(),false);
-        print_lcd("Turned off",false);
+        while(motor_state){
+          run_motor();
+          char check_cmd[3] = {};
+          for(int idx = 0; idx < 3; idx++){
+            check_cmd[idx] = host.read();
+            }
+          Serial.println(check_cmd);
+          if(check_cmd[0] == CMD_MSG && check_cmd[1] == TURN_OFF){
+            motor_state = false;
+            }
+          }
+          Serial.println("received turn off");
+          digitalWrite(servo_pin, LOW);
+          Serial.println("should done turn off");
+          print_lcd("servo ");
+          print_lcd("Turned off",false);
         }
+      
+//      if(rx_msg[1] == '1'){
+//        print_lcd("servo ");
+//        //print_lcd(((String)rx_msg[2]).c_str(),false);
+//        print_lcd("Turned on",false);
+//        motor_state = true;
+//        run_motor();
+//       }
+//      else if(rx_msg[1] == '0'){
+//        Serial.println("received turn off");
+//        motor_state = false;
+//        digitalWrite(servo_pin, LOW);
+//        Serial.println("should done turn off");
+//        print_lcd("servo ");
+//        //print_lcd(((String)rx_msg[2]).c_str(),false);
+//        print_lcd("Turned off",false);
+//        }
     }
 
     // get time stamp
@@ -312,15 +337,34 @@ String ip2string(IPAddress ip){
   }
 
 void run_motor(){
-  while(Serial.available()==0){
-    for(duty_cycle = 0; duty_cycle <= 52; duty_cycle++){
-        ledcWrite(ledc_channel, duty_cycle);
-        delay(15);
-      }
-    for(duty_cycle = 52; duty_cycle >= 0; duty_cycle--){
-        ledcWrite(ledc_channel, duty_cycle);
-        delay(15);
-      }
-      Serial.read();
+  for(duty_cycle = 0; duty_cycle <= 52; duty_cycle++){
+    ledcWrite(ledc_channel, duty_cycle);
+    delay(15);
+    }
+  for(duty_cycle = 52; duty_cycle >= 0; duty_cycle--){
+    ledcWrite(ledc_channel, duty_cycle);
+    delay(15);
     }
   }
+
+//void run_motor(){
+//  motor_state = true;
+//  while(motor_state){
+//    for(duty_cycle = 0; duty_cycle <= 52; duty_cycle++){
+//        ledcWrite(ledc_channel, duty_cycle);
+//        delay(15);
+//      }
+//    for(duty_cycle = 52; duty_cycle >= 0; duty_cycle--){
+//        ledcWrite(ledc_channel, duty_cycle);
+//        delay(15);
+//      }
+//      for(int idx=0; idx<2; idx++){
+//        check_cmd[idx] = host.read();
+//        Serial.println(check_cmd[idx]);
+//        }
+//      Serial.println(check_cmd);
+//      if(check_cmd[0]== CMD_MSG && check_cmd[1] == TURN_OFF){
+//        motor_state = false;
+//        }
+//    }
+//  }
