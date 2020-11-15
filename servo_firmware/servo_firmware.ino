@@ -149,20 +149,17 @@ void loop() {
       // turn on or off servo by first char
 
       if(rx_msg[1]=='1'){
-        print_lcd("servo ");
-        print_lcd("Turned on",false);
-        
         motor_state = true;
         while(motor_state){
+          print_lcd("servo ");
+          print_lcd("Turned on",false);
           run_motor();
-          char check_cmd[4] = {};
-          for(int idx = 0; idx < 4; idx++){
-            check_cmd[idx] = host.read();
-            }
-          Serial.println(check_cmd);
-          if(check_cmd[0] == CMD_MSG && check_cmd[1] == TURN_OFF){
+          char msg = recv_msg_motor();
+
+          if(msg == CMD_MSG && rx_buf[1]==TURN_OFF){
             motor_state = false;
             }
+
           }
           Serial.println("received turn off");
           digitalWrite(servo_pin, LOW);
@@ -244,6 +241,41 @@ char recv_msg() {
   }
   return msg_type;
 }
+
+char recv_msg_motor() {
+  char in_byte = 'M';
+  char msg_type = '0';
+  buf_cur = 0;
+  // check that host is connected
+    // check that a new msg is available
+    if (host.available()) {
+      while(in_byte != 'E'){
+      // check buffer overflow
+      if (buf_cur >= BUF_SIZE) {
+        Serial.println("RX BUFFER OVERFLOW");
+        break;
+      }
+      // read one byte at a time
+      in_byte = host.read();
+      
+      if (in_byte == CMD_MSG || in_byte == TIME_MSG)
+        msg_type = in_byte;
+      // if terminated add the null terminator to the buf and return
+      if (in_byte == END_MSG) {
+        rx_buf[buf_cur++] = '\0';
+        break;
+      }
+      // else add to the buffer
+      else
+        rx_buf[buf_cur++] = in_byte;
+      }
+    }
+    // delay before next check to avoid crashes
+    else
+      delay(1);
+  return msg_type;
+}
+
 
 
 
