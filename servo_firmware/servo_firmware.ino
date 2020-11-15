@@ -155,8 +155,8 @@ void loop() {
         motor_state = true;
         while(motor_state){
           run_motor();
-          char check_cmd[3] = {};
-          for(int idx = 0; idx < 3; idx++){
+          char check_cmd[4] = {};
+          for(int idx = 0; idx < 4; idx++){
             check_cmd[idx] = host.read();
             }
           Serial.println(check_cmd);
