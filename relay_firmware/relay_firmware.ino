@@ -5,6 +5,7 @@
 #define END_MSG   'E'
 #define CMD_MSG   'C'
 #define TIME_MSG  'T'
+#define JITTER_MSG 'J'
 
 // lcd defines
 //////// PINS FOR ESP32S2 to LCD
@@ -37,17 +38,21 @@ void setBacklight(uint8_t R, uint8_t G, uint8_t B);
 SPIClass * vspi = NULL;
 char cur_color = 0;
 
+// data for TCP communication
 uint port = 8888;
 WiFiServer server(port);
 WiFiClient host;
 
-const char* ssid = "";
-const char* password = "";
+// place SSID and password for WiFi here
+const char* ssid = "RockoNet";
+const char* password = "Sasroc0882!";
+
+// data for jitter buffer
+int jitter_buf = 200;
+unsigned long start_time;
 
 // list of states, the number given to a state correlates by index to a meaning in this array
 const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};
-// list of possible commands during OPERATIONAL state, should compare input to commands when deciding response
-const String cmds[4] = {"set_wifi", "on", "off", "reboot"};
 
 // function prototypes
 int init_tcp_connect();
@@ -81,17 +86,12 @@ void setup() {
 
   state++;
   Serial.println("Success!");
-  Serial.print("IP : ");
-  Serial.println(WiFi.localIP());
-
   print_lcd("WiFi Connected!");
 
   // set up a server for tcp communication
 
   server.begin();
   Serial.println("Server set up.");
-  Serial.print("IP after server init:");
-  Serial.println(WiFi.localIP());
 
   // pin modes and set up for relay
   pinMode(relay0,OUTPUT);
@@ -106,21 +106,21 @@ void setup() {
 }
 
 void loop() {
-
-  
-  
+  bool printIP = true;
   // while loop waits for TCP connection, exits loop when connected
   while (state < 2) {
-    String ip_str = ip2string(WiFi.localIP()); 
-    print_lcd("IP: ");
-    print_lcd(ip_str.c_str(),false);
-    print_lcd("   ",false);
-      
-    print_lcd("PORT: ",false);
-    print_lcd(((String)port).c_str(), false);
-    Serial.println("Waiting for TCP connection...");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
+    if (printIP){
+      String ip_str = ip2string(WiFi.localIP()); 
+      print_lcd("IP: ");
+      print_lcd(ip_str.c_str(),false);
+      print_lcd("   ",false);
+      print_lcd("PORT: ",false);
+      print_lcd(((String)port).c_str(), false);
+      Serial.println("Waiting for TCP connection...");
+      Serial.print("IP: ");
+      Serial.println(WiFi.localIP());
+      printIP = false;
+    }
 
     if (server.hasClient()) {
       if (host.connected()) {
@@ -128,10 +128,11 @@ void loop() {
       }
       else {
         host = server.available();
+        start_time = millis();
         state = 2;
       }
     }
-    delay(200);
+    delay(1);
   }
   Serial.println("Client found!");
   print_lcd("TCP Connected!");
@@ -144,40 +145,60 @@ void loop() {
 
     // first get string msg
     char msg_type = recv_msg();
+
+    // reset the current timer
+    if(msg_type == JITTER_MSG){
+      start_time = millis();
+      jitter_buf = atoi(rx_buf);
+      }
     
     if (msg_type == CMD_MSG){
       strcpy(rx_msg, rx_buf);
 
-      Serial.println(rx_msg);
+      // recieve timestamp that follows all commands
+      if (recv_msg() == TIME_MSG){
+        rx_time = atoi(rx_buf);
+        int latency = get_time() - rx_time;
+        
+        // if the latency is smaller than the buffer, delay execution
+        if (jitter_buf > latency){
+          delay(jitter_buf - latency);
+          Serial.print("msg: ");
+          Serial.println(rx_msg);
+          Serial.print("latency: ");
+          Serial.println(latency);
+          Serial.print("jitter: ");
+          Serial.println(get_time() - rx_time);
+        }
+      }
     
       // turn on or off relays by first char, relay number from second char
-      if(rx_msg[1] == '1'){
-        digitalWrite((int)(rx_msg[2] - '0'), LOW);
+      if(rx_msg[0] == '1'){
+        digitalWrite((int)(rx_msg[1] - '0'), LOW);
         print_lcd("relay ");
-        print_lcd(((String)rx_msg[2]).c_str(),false);
+        print_lcd(((String)rx_msg[1]).c_str(),false);
         print_lcd(" on",false);
         }
-      else if(rx_msg[1] == '0'){
-        digitalWrite((int)(rx_msg[2] - '0'), HIGH);
+      else if(rx_msg[0] == '0'){
+        digitalWrite((int)(rx_msg[1] - '0'), HIGH);
         print_lcd("relay ");
-        print_lcd(((String)rx_msg[2]).c_str(),false);
+        print_lcd(((String)rx_msg[1]).c_str(),false);
         print_lcd(" off",false);
         }
     }
 
     // get time stamp
-    else if (msg_type == TIME_MSG)
+    else if (msg_type == TIME_MSG){
       rx_time = atoi(rx_buf);
+      Serial.print("recieved time msg: ");
+      Serial.println(rx_time);
+    }
 
-    Serial.print("msg: ");
-    Serial.println(rx_msg);
-    Serial.print("time: ");
-    Serial.println(rx_time);
     delay(1);
   }
 
   Serial.print("UNDEFINED: ");
-  Serial.println(state);
+  Serial.println(states[state]);
 
   host.stop();
   state = 1;
@@ -188,25 +209,28 @@ void loop() {
    This function terminates and returns when rx_buf is overflowed or found the 'E' terminating
 */
 char recv_msg() {
-  char in_byte;
-  char msg_type = '0';
+  char in_byte = 'x';
+  char msg_type = '\0';
   buf_cur = 0;
-  // check that host is connected
-  while (host.connected()) {
-    // check that a new msg is available
-    if (host.available()) {
+
+  // check that a new msg is available
+  if (host.available()) {
+    // repeat read until message terminated
+    while(in_byte != END_MSG){
       // check buffer overflow
       if (buf_cur >= BUF_SIZE) {
         Serial.println("RX BUFFER OVERFLOW");
-        break;
+        buf_cur = 0;
       }
       // read one byte at a time
       in_byte = host.read();
       
-      if (in_byte == CMD_MSG || in_byte == TIME_MSG)
+      if (in_byte == TIME_MSG || in_byte == CMD_MSG || in_byte == JITTER_MSG){
         msg_type = in_byte;
+      }
+      
       // if terminated add the null terminator to the buf and return
-      if (in_byte == END_MSG) {
+      else if (in_byte == END_MSG) {
         rx_buf[buf_cur++] = '\0';
         break;
       }
@@ -214,10 +238,11 @@ char recv_msg() {
       else
         rx_buf[buf_cur++] = in_byte;
     }
-    // delay before next check to avoid crashes
-    else
-      delay(1);
   }
+  // delay before next check to avoid crashes
+  else
+    delay(1);
+  
   return msg_type;
 }
 
@@ -310,4 +335,8 @@ String ip2string(IPAddress ip){
       ip_str = ip_str + ".";
     }
     return ip_str;
+  }
+
+unsigned long get_time(){
+  return millis() - start_time;
   }

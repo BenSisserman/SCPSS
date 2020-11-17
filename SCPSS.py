@@ -59,15 +59,9 @@ class SCPSS:
     def turnOff(self, relayNum=0):
         self.sendStringWithTime("0" + str(relayNum))
 
-    def syncClocks(self):
+    def syncClocks(self, latency = 200):
         self.sendCustomMsg('J', '')
         self.startTime = getMilliSecs()
-
-    def setLatency(self):
-        pass
-
-    def measureLatency(self):
-        pass
     
     def setWiFi(self,SSID,PASS):
         pass
@@ -75,10 +69,11 @@ class SCPSS:
     def getTime(self):
         return getMilliSecs() - self.startTime
 
-    # EXTRA
-    def timer(self):
-        pass
 
+
+    ##### DEPRACATED
+    # Function called during initialization for esp32s2 to calculate time difference between machines
+    '''
     def getTimeFromEsp(self):
         # 4 is the size of the timestamp being sent
         msg = self.mySocket.recv(4)
@@ -87,10 +82,7 @@ class SCPSS:
         return time
     
 
-    ##### DEPRACATED
-    # TO DO
-    # Function called during initialization for esp32s2 to calculate time difference between machines
-    '''
+    
     def setTimeDifference(self, num_msgs):
         # pass
         # send msg to tell esp that we are setting the time difference
