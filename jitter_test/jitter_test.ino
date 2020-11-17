@@ -29,18 +29,21 @@ int   buf_cur = 0;
 int   time_difference;
 int   latency;
 
+// set jitter buffer to 200 ms
+int jitter_buf = 200;
+
 char  rx_buf[BUF_SIZE];
 char  rx_msg[BUF_SIZE];
 char  in_byte;
 long  rx_time;
 
+unsigned long startTime;
 
 void setup() {
   // connect to wifi network
   Serial.begin(115200);
   WiFi.begin(ssid, password);
   
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print("Connecting to Wifi network: ");
@@ -61,22 +64,25 @@ void setup() {
 }
 
 void loop() {
-
+  bool printIP = true;
   while (state < 2) {
-    Serial.println("Waiting for TCP connection...");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-
+    if(printIP){
+      Serial.println("Waiting for TCP connection...");
+      Serial.print("IP: ");
+      Serial.println(WiFi.localIP());
+      printIP = false;
+    }
     if (server.hasClient()) {
       if (host.connected()) {
         server.available().stop();
       }
       else {
         host = server.available();
+        startTime = millis();
         state = 2;
       }
     }
-    delay(200);
+    delay(1);
   }
   Serial.println("Client found!");
   
@@ -86,37 +92,29 @@ void loop() {
 
     char msg_type = recv_msg();
 
+    // reset the current timer
     if(msg_type == JITTER_MSG){
-      int num_msgs = atoi(rx_buf);
-      Serial.print("number of expected msgs: ");
-      Serial.println(num_msgs);
-      time_difference = getTimeDifference(num_msgs);
-      state = 3;
-      continue;
+      startTime = millis();
       }
     
     if (msg_type == CMD_MSG){
       strcpy(rx_msg, rx_buf);
     } 
     
-    else if(msg_type == TIME_MSG && state == 3){
+    else if(msg_type == TIME_MSG){
       rx_time = atoi(rx_buf);
-      int timeESP = millis();
-      latency = timeESP + time_difference - rx_time;
+
+      int latency = millis() - startTime - rx_time;
+      if (jitter_buf > latency)
+        delay(jitter_buf - latency);
+        
       Serial.print("msg: ");
       Serial.println(rx_msg);
-      Serial.print("time on host when sent: ");
-      Serial.println(rx_time);
-      Serial.print("time on esp: ");
-      Serial.println(timeESP);
-      Serial.print("time diff: ");
-      Serial.println(time_difference);
       Serial.print("latency: ");
       Serial.println(latency);
+      Serial.print("jitter: ");
+      Serial.println(millis() - startTime - rx_time);
     }
-
-    
-    delay(1);
   }
 
   Serial.print("UNDEFINED: ");
@@ -194,13 +192,13 @@ int getTimeDifference(unsigned int num_msgs) {
    This function terminates and returns when rx_buf is overflowed or found the 'E' terminating
 */
 char recv_msg() {
-  char in_byte;
+  char in_byte = 'x';
   char msg_type = '\0';
   buf_cur = 0;
-  // check that host is connected
-  while (host.connected()) {
-    // check that a new msg is available
-    if (host.available()) {
+
+  // check that a new msg is available
+  if (host.available()) {
+    while(in_byte != END_MSG){
       // check buffer overflow
       if (buf_cur >= BUF_SIZE) {
         Serial.println("RX BUFFER OVERFLOW");
@@ -222,10 +220,11 @@ char recv_msg() {
       else
         rx_buf[buf_cur++] = in_byte;
     }
-    // delay before next check to avoid crashes
-    else
-      delay(1);
   }
+  // delay before next check to avoid crashes
+  else
+    delay(1);
+  
   return msg_type;
 }
 
@@ -244,3 +243,7 @@ void send_time(){
   }
   return;
 }
+
+unsigned long getTime(){
+  return millis() - startTime;
+  }

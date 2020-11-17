@@ -29,7 +29,7 @@ class SCPSS:
         self.startTime = getMilliSecs()
 
         # initialze the time difference between device and host
-        self.setTimeDifference(500)
+        # self.setTimeDifference(500)
 
 
     # send a string with C for command code, T for time, E for end
@@ -59,6 +59,10 @@ class SCPSS:
     def turnOff(self, relayNum=0):
         self.sendStringWithTime("0" + str(relayNum))
 
+    def syncClocks(self):
+        self.sendCustomMsg('J', '')
+        self.startTime = getMilliSecs()
+
     def setLatency(self):
         pass
 
@@ -82,8 +86,11 @@ class SCPSS:
         time = int.from_bytes(msg,byteorder='little', signed=False)
         return time
     
+
+    ##### DEPRACATED
     # TO DO
     # Function called during initialization for esp32s2 to calculate time difference between machines
+    '''
     def setTimeDifference(self, num_msgs):
         # pass
         # send msg to tell esp that we are setting the time difference
@@ -106,5 +113,4 @@ class SCPSS:
         # send the minimum value back
         #print(min(times))
         self.sendCustomMsg('J', min(times))
-
-        
+        '''
