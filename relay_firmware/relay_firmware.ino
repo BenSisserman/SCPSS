@@ -44,8 +44,8 @@ WiFiServer server(port);
 WiFiClient host;
 
 // place SSID and password for WiFi here
-const char* ssid = "RockoNet";
-const char* password = "Sasroc0882!";
+const char* ssid = "BenPhone";
+const char* password = "rocko2323";
 
 // data for jitter buffer
 int jitter_buf = 200;
