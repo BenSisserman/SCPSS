@@ -89,7 +89,7 @@ void setup() {
 
   print_lcd("Connecting to WiFi...");
 
-  check_battery();
+  //check_battery();
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -116,6 +116,7 @@ void loop() {
   bool printIP = true;
   // while loop waits for TCP connection, exits loop when connected
   while (state < 2) {
+    check_battery();
     if (printIP) {
       String ip_str = ip2string(WiFi.localIP());
       print_lcd("IP: ");
@@ -149,6 +150,7 @@ void loop() {
 
   print_lcd("Listening for commands...");
   while (host.connected()) {
+    check_battery();
 
     // first get string msg
     char msg_type = recv_msg();
@@ -208,7 +210,6 @@ void loop() {
     }
 
     delay(1);
-    check_battery();
   }
 
   Serial.print("UNDEFINED: ");
