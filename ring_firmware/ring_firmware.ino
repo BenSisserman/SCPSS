@@ -2,10 +2,11 @@
 #include <SPI.h>
 
 #define BUF_SIZE 128
-#define END_MSG   'E'
-#define CMD_MSG   'C'
-#define TIME_MSG  'T'
-#define JITTER_MSG 'J'
+#define END_MSG     'E'
+#define CMD_MSG     'C'
+#define TIME_MSG    'T'
+#define JITTER_MSG  'J'
+#define TURN_OFF    '0'
 
 // lcd defines
 //////// PINS FOR ESP32S2 to LCD
@@ -23,16 +24,15 @@
 #define SCR_WIDTH   16
 #define LCD_SIZE    32
 
-// pins for relay board
-#define relay0      0
-#define relay1      1
-#define relay2      2
-#define relay3      3
+// variables for ringing board
+#define ring_pin_0    2
+#define ring_pin_180  3
 
 void init_lcd();
 void clear_screen();
 void print_lcd(const char* msg, bool clear_buf = true);
 void setBacklight(uint8_t R, uint8_t G, uint8_t B);
+void run_ring();
 
 // data for lcd using SPI
 SPIClass * vspi = NULL;
@@ -44,13 +44,14 @@ WiFiServer server(port);
 WiFiClient host;
 
 // place SSID and password for WiFi here
-const char* ssid = "RockoNet";
-const char* password = "Sasroc0882!";
+const char* ssid = "BenPhone";
+const char* password = "rocko2323";
 
 // data for jitter buffer
 int jitter_buf = 200;
 unsigned long start_time;
 
+int   buf_cur = 0;
 // list of states, the number given to a state correlates by index to a meaning in this array
 const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};
 
@@ -61,13 +62,12 @@ String ip2string(IPAddress ip);
 
 // glolbal variables
 int   state = 0;
-int   buf_cur = 0;
 int   iter;
 char  rx_buf[BUF_SIZE];
 char  rx_msg[BUF_SIZE];
 char  in_byte;
 long  rx_time;
-
+bool ring_state = false;
 
 void setup() {
   // connect to wifi network
@@ -94,15 +94,8 @@ void setup() {
   Serial.println("Server set up.");
 
   // pin modes and set up for relay
-  pinMode(relay0,OUTPUT);
-  pinMode(relay1,OUTPUT);
-  pinMode(relay2,OUTPUT);
-  pinMode(relay3,OUTPUT);
-
-  digitalWrite(relay0, HIGH);
-  digitalWrite(relay1, HIGH);
-  digitalWrite(relay2, HIGH);
-  digitalWrite(relay3, HIGH);
+  pinMode(ring_pin_0, OUTPUT);
+  pinMode(ring_pin_180, OUTPUT);
 }
 
 void loop() {
@@ -174,16 +167,23 @@ void loop() {
     
       // turn on or off relays by first char, relay number from second char
       if(rx_msg[0] == '1'){
-        digitalWrite((int)(rx_msg[1] - '0'), LOW);
-        print_lcd("relay ");
-        print_lcd(((String)rx_msg[1]).c_str(),false);
-        print_lcd(" on",false);
-        }
-      else if(rx_msg[0] == '0'){
-        digitalWrite((int)(rx_msg[1] - '0'), HIGH);
-        print_lcd("relay ");
-        print_lcd(((String)rx_msg[1]).c_str(),false);
-        print_lcd(" off",false);
+        ring_state = true;
+
+        while(ring_state){
+          print_lcd("ring ");
+          print_lcd(" on",false);
+          run_ring();
+          char msg = recv_msg();
+
+          if(rx_buf[0]==TURN_OFF){
+            ring_state = false;
+            }
+          }
+
+          digitalWrite(ring_pin_0, LOW);
+          digitalWrite(ring_pin_180, LOW);
+          print_lcd("ring ");
+          print_lcd(" off", false);
         }
     }
 
@@ -339,4 +339,13 @@ String ip2string(IPAddress ip){
 
 unsigned long get_time(){
   return millis() - start_time;
+  }
+
+void run_ring(){
+  digitalWrite(ring_pin_0, HIGH);
+  digitalWrite(ring_pin_180, LOW);
+  delay(23);
+  digitalWrite(ring_pin_0, LOW);
+  digitalWrite(ring_pin_180, HIGH);
+  delay(23);
   }
