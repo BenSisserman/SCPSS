@@ -68,7 +68,6 @@ char  rx_msg[BUF_SIZE];
 char  in_byte;
 long  rx_time;
 
-
 void setup() {
   // connect to wifi network
   Serial.begin(115200);
@@ -158,7 +157,7 @@ void loop() {
       // recieve timestamp that follows all commands
       if (recv_msg() == TIME_MSG){
         rx_time = atoi(rx_buf);
-        int latency = get_time() - rx_time;
+        int latency = get_time() - rx_time; // include time difference and travel time
         
         // if the latency is smaller than the buffer, delay execution
         if (jitter_buf > latency){
@@ -261,7 +260,7 @@ void init_lcd(){
   vspi->endTransaction();
 }
 
-
+// sends clear lcd display msg to the serLCD. Also resets the cursor
 void clear_screen(){
   digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
   // need to let LCD move to setting mode before clearing screen, hence the delay
@@ -301,6 +300,7 @@ void print_lcd(const char* msg, bool clear_buf){
   //vspi->endTransaction();
 }
 
+// sets the backlight of the lcd display. Uses RGB values 0-255 for each
 void setBacklight(uint8_t R, uint8_t G, uint8_t B){
   
   // enable CS
@@ -327,6 +327,7 @@ void setBacklight(uint8_t R, uint8_t G, uint8_t B){
   return;
 }
 
+// converts IPAddress type to a string that can be printed
 String ip2string(IPAddress ip){
   String ip_str = "";
   for(int i = 0; i < 4; i++){
@@ -337,6 +338,7 @@ String ip2string(IPAddress ip){
     return ip_str;
   }
 
+// returns time on timer of the board
 unsigned long get_time(){
   return millis() - start_time;
   }
