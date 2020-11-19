@@ -31,6 +31,13 @@
 #define pwm_channel   0
 #define resolution    8
 
+// constant ratio for converting analog input to voltage: 278 per 1V
+#define BATTERY_PIN 1
+#define VOLTAGE_CONVERT 278.0
+int voltage;
+
+
+double analog2voltage(int input);
 void init_lcd();
 void clear_screen();
 void print_lcd(const char* msg, bool clear_buf = true);
@@ -39,7 +46,7 @@ void run_motor();
 
 // data for lcd using SPI
 SPIClass * vspi = NULL;
-char cur_color = 0;
+char cur_color = 'G';
 
 // data for TCP communication
 uint port = 8888;
@@ -61,7 +68,7 @@ const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};
 // function prototypes
 int init_tcp_connect();
 char recv_msg();
-String ip2string(IPAddress ip);
+String ip2string(IPAddressant ip);
 
 // glolbal variables
 int   state = 0;
@@ -100,6 +107,21 @@ void setup() {
   // pin modes and set up for relay
   ledcSetup(pwm_channel, frequency, resolution);
   ledcAttachPin(servo_pin, pwm_channel);
+
+  voltage = analog2voltage(analogRead(BATTERY_PIN));
+  if (voltage >= 5.0){
+    setBacklight(0,255,0);
+    cur_color = 'G';
+  }
+  else if (voltage < 5.0 && voltage >= 4.8){
+    setBacklight(255,69,0);
+    cur_color = 'O';
+  }
+  else
+  {
+    setBacklight(255,0,0);
+    cur_color = 'R';
+  }
 }
 
 void loop() {
@@ -179,7 +201,7 @@ void loop() {
           run_motor();
           char msg = recv_msg();
 
-          if(rx_buf[0]==TURN_OFF){
+          if(rx_buf[0] == TURN_OFF){
             motor_state = false;
             }
           }
@@ -197,6 +219,20 @@ void loop() {
       Serial.println(rx_time);
     }
 
+    // read battery
+    voltage = analog2voltage(analogRead(BATTERY_PIN));
+    if (voltage >= 5.0 && cur_color != 'G'){
+      setBacklight(0,255,0);
+      cur_color = 'G';
+    }
+    else if (voltage < 5.0 && voltage >= 4.8 && cur_color != 'O'){
+      setBacklight(255,69,0);
+      cur_color = 'O';
+    }
+    else if (cur_color != 'R') {
+      setBacklight(255,0,0);
+      cur_color = 'R';
+    }
     delay(1);
   }
 
@@ -353,4 +389,9 @@ void run_motor(){
     ledcWrite(pwm_channel, duty_cycle);
     delay(15);
     }
+  }
+
+// converts analog read input from battery sense circuit to approximate voltage
+double analog2voltage(int input){
+  return input/VOLTAGE_CONVERT;
   }
