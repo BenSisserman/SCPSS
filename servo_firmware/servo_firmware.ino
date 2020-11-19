@@ -11,11 +11,11 @@
 // lcd defines
 //////// PINS FOR ESP32S2 to LCD
 /*
- * Pin 4 => SCK
- * Pin 5 => SDO
- * Pin 6 => SDI
- * Pin 7 => CS
- */
+   Pin 4 => SCK
+   Pin 5 => SDO
+   Pin 6 => SDI
+   Pin 7 => CS
+*/
 #define VSPI FSPI   // unclear what this is.....
 #define VSPI_MISO   5
 #define VSPI_MOSI   6
@@ -34,8 +34,6 @@
 // constant ratio for converting analog input to voltage: 278 per 1V
 #define BATTERY_PIN 1
 #define VOLTAGE_CONVERT 278.0
-int voltage;
-
 
 double analog2voltage(int input);
 void init_lcd();
@@ -46,7 +44,7 @@ void run_motor();
 
 // data for lcd using SPI
 SPIClass * vspi = NULL;
-char cur_color = 'G';
+char cur_color = '0';
 
 // data for TCP communication
 uint port = 8888;
@@ -68,7 +66,8 @@ const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};
 // function prototypes
 int init_tcp_connect();
 char recv_msg();
-String ip2string(IPAddressant ip);
+String ip2string(IPAddress ip);
+void check_battery();
 
 // glolbal variables
 int   state = 0;
@@ -84,15 +83,18 @@ void setup() {
   // connect to wifi network
   Serial.begin(115200);
   WiFi.begin(ssid, password);
-  
+
   // initiate lcd spi interface
   init_lcd();
 
   print_lcd("Connecting to WiFi...");
+
+  check_battery();
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print("Connecting to Wifi network: ");
-    Serial.println(ssid);
+    //Serial.print("Connecting to Wifi network: ");
+    //Serial.println(ssid);
   }
 
   state++;
@@ -108,32 +110,18 @@ void setup() {
   ledcSetup(pwm_channel, frequency, resolution);
   ledcAttachPin(servo_pin, pwm_channel);
 
-  voltage = analog2voltage(analogRead(BATTERY_PIN));
-  if (voltage >= 5.0){
-    setBacklight(0,255,0);
-    cur_color = 'G';
-  }
-  else if (voltage < 5.0 && voltage >= 4.8){
-    setBacklight(255,69,0);
-    cur_color = 'O';
-  }
-  else
-  {
-    setBacklight(255,0,0);
-    cur_color = 'R';
-  }
 }
 
 void loop() {
   bool printIP = true;
   // while loop waits for TCP connection, exits loop when connected
   while (state < 2) {
-    if (printIP){
-      String ip_str = ip2string(WiFi.localIP()); 
+    if (printIP) {
+      String ip_str = ip2string(WiFi.localIP());
       print_lcd("IP: ");
-      print_lcd(ip_str.c_str(),false);
-      print_lcd("   ",false);
-      print_lcd("PORT: ",false);
+      print_lcd(ip_str.c_str(), false);
+      print_lcd("   ", false);
+      print_lcd("PORT: ", false);
       print_lcd(((String)port).c_str(), false);
       Serial.println("Waiting for TCP connection...");
       Serial.print("IP: ");
@@ -158,7 +146,7 @@ void loop() {
 
   // listen for msg from client while a connection is maintained
   /////// EDIT THIS WHILE LOOP FOR TESTING
-  
+
   print_lcd("Listening for commands...");
   while (host.connected()) {
 
@@ -166,21 +154,21 @@ void loop() {
     char msg_type = recv_msg();
 
     // reset the current timer
-    if(msg_type == JITTER_MSG){
+    if (msg_type == JITTER_MSG) {
       start_time = millis();
       jitter_buf = atoi(rx_buf);
-      }
-    
-    if (msg_type == CMD_MSG){
+    }
+
+    if (msg_type == CMD_MSG) {
       strcpy(rx_msg, rx_buf);
 
       // recieve timestamp that follows all commands
-      if (recv_msg() == TIME_MSG){
+      if (recv_msg() == TIME_MSG) {
         rx_time = atoi(rx_buf);
         int latency = get_time() - rx_time;
-        
+
         // if the latency is smaller than the buffer, delay execution
-        if (jitter_buf > latency){
+        if (jitter_buf > latency) {
           delay(jitter_buf - latency);
           Serial.print("msg: ");
           Serial.println(rx_msg);
@@ -190,50 +178,37 @@ void loop() {
           Serial.println(get_time() - rx_time);
         }
       }
-    
+
       // turn on or off relays by first char, relay number from second char
-      if(rx_msg[0] == '1'){
+      if (rx_msg[0] == '1') {
         motor_state = true;
 
-        while(motor_state){
+        while (motor_state) {
           print_lcd("servo ");
-          print_lcd(" on",false);
+          print_lcd(" on", false);
           run_motor();
           char msg = recv_msg();
 
-          if(rx_buf[0] == TURN_OFF){
+          if (rx_buf[0] == TURN_OFF) {
             motor_state = false;
-            }
           }
-
-          digitalWrite(servo_pin, LOW);
-          print_lcd("servo ");
-          print_lcd(" off", false);
         }
+
+        digitalWrite(servo_pin, LOW);
+        print_lcd("servo ");
+        print_lcd(" off", false);
+      }
     }
 
     // get time stamp
-    else if (msg_type == TIME_MSG){
+    else if (msg_type == TIME_MSG) {
       rx_time = atoi(rx_buf);
       Serial.print("recieved time msg: ");
       Serial.println(rx_time);
     }
 
-    // read battery
-    voltage = analog2voltage(analogRead(BATTERY_PIN));
-    if (voltage >= 5.0 && cur_color != 'G'){
-      setBacklight(0,255,0);
-      cur_color = 'G';
-    }
-    else if (voltage < 5.0 && voltage >= 4.8 && cur_color != 'O'){
-      setBacklight(255,69,0);
-      cur_color = 'O';
-    }
-    else if (cur_color != 'R') {
-      setBacklight(255,0,0);
-      cur_color = 'R';
-    }
     delay(1);
+    check_battery();
   }
 
   Serial.print("UNDEFINED: ");
@@ -255,7 +230,7 @@ char recv_msg() {
   // check that a new msg is available
   if (host.available()) {
     // repeat read until message terminated
-    while(in_byte != END_MSG){
+    while (in_byte != END_MSG) {
       // check buffer overflow
       if (buf_cur >= BUF_SIZE) {
         Serial.println("RX BUFFER OVERFLOW");
@@ -263,11 +238,11 @@ char recv_msg() {
       }
       // read one byte at a time
       in_byte = host.read();
-      
-      if (in_byte == TIME_MSG || in_byte == CMD_MSG || in_byte == JITTER_MSG){
+
+      if (in_byte == TIME_MSG || in_byte == CMD_MSG || in_byte == JITTER_MSG) {
         msg_type = in_byte;
       }
-      
+
       // if terminated add the null terminator to the buf and return
       else if (in_byte == END_MSG) {
         rx_buf[buf_cur++] = '\0';
@@ -281,7 +256,7 @@ char recv_msg() {
   // delay before next check to avoid crashes
   else
     delay(1);
-  
+
   return msg_type;
 }
 
@@ -289,9 +264,9 @@ char recv_msg() {
 
 // function initialies the SPI object to transmit to LCD
 // Uses global vspi pointer
-void init_lcd(){
+void init_lcd() {
   vspi = new SPIClass(VSPI);
-  vspi->begin(VSPI_SCLK, VSPI_MISO, VSPI_MOSI, VSPI_SS); 
+  vspi->begin(VSPI_SCLK, VSPI_MISO, VSPI_MOSI, VSPI_SS);
   pinMode(VSPI_SS, OUTPUT); // set Slave Select as output
   digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
   vspi->transfer(0x04); // set width to 16
@@ -301,7 +276,7 @@ void init_lcd(){
 }
 
 
-void clear_screen(){
+void clear_screen() {
   digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
   // need to let LCD move to setting mode before clearing screen, hence the delay
   vspi->transfer('|'); //Put LCD into setting mode
@@ -314,25 +289,25 @@ void clear_screen(){
 
 
 // print all string to screen, by defualt clears existing screen
-void print_lcd(const char* msg, bool clear_buf){
+void print_lcd(const char* msg, bool clear_buf) {
   int i;
   int len;
-  
-  // clear the screen and reset the length of the buffer  
-  if (clear_buf){
+
+  // clear the screen and reset the length of the buffer
+  if (clear_buf) {
     clear_screen();
   }
 
-  for(i = 0; i < LCD_SIZE; i++){
+  for (i = 0; i < LCD_SIZE; i++) {
     if (msg[i] == '\0')
       break;
-    }
+  }
   len = i;
-  
+
   //Drive the CS pin low to select OpenLCD
-  digitalWrite(VSPI_SS, LOW); 
+  digitalWrite(VSPI_SS, LOW);
   // display buffer
-  for(i = 0; i < len; i++){
+  for (i = 0; i < len; i++) {
     vspi->transfer(msg[i]);
     delay(1);
   }
@@ -340,15 +315,15 @@ void print_lcd(const char* msg, bool clear_buf){
   //vspi->endTransaction();
 }
 
-void setBacklight(uint8_t R, uint8_t G, uint8_t B){
-  
+void setBacklight(uint8_t R, uint8_t G, uint8_t B) {
+
   // enable CS
   digitalWrite(VSPI_SS, LOW); //Drive the CS pin low to select OpenLCD
 
   // command tells LCD to expect RGB
   vspi->transfer('|');
   delay(1);
-  
+
   vspi->transfer('+');
   delay(1);
 
@@ -366,32 +341,57 @@ void setBacklight(uint8_t R, uint8_t G, uint8_t B){
   return;
 }
 
-String ip2string(IPAddress ip){
+String ip2string(IPAddress ip) {
   String ip_str = "";
-  for(int i = 0; i < 4; i++){
+  for (int i = 0; i < 4; i++) {
     ip_str = ip_str + (String)ip[i];
     if (i != 3)
       ip_str = ip_str + ".";
-    }
-    return ip_str;
   }
+  return ip_str;
+}
 
-unsigned long get_time(){
+unsigned long get_time() {
   return millis() - start_time;
-  }
+}
 
-void run_motor(){
-  for(duty_cycle = 0; duty_cycle <= 52; duty_cycle++){
+void run_motor() {
+  for (duty_cycle = 0; duty_cycle <= 52; duty_cycle++) {
     ledcWrite(pwm_channel, duty_cycle);
     delay(15);
-    }
-  for(duty_cycle = 52; duty_cycle >= 0; duty_cycle--){
-    ledcWrite(pwm_channel, duty_cycle);
-    delay(15);
-    }
   }
+  for (duty_cycle = 52; duty_cycle >= 0; duty_cycle--) {
+    ledcWrite(pwm_channel, duty_cycle);
+    delay(15);
+  }
+}
 
 // converts analog read input from battery sense circuit to approximate voltage
-double analog2voltage(int input){
-  return input/VOLTAGE_CONVERT;
+double analog2voltage(int input) {
+  return input / VOLTAGE_CONVERT;
+}
+
+
+double voltage = 0;
+void check_battery() {
+  // read battery
+  voltage = 0;
+  for (int i = 0; i < 10; i++) {
+    voltage += analog2voltage(analogRead(BATTERY_PIN));
   }
+  voltage = voltage / 10;
+  Serial.print("voltage: ");
+  Serial.println(voltage);
+  if (voltage >= 5.4 && cur_color != 'G') {
+    setBacklight(0, 255, 0);
+    delay(1);
+    cur_color = 'G';
+  }
+
+  else if (voltage < 5.0 && cur_color != 'R') {
+    setBacklight(255, 0, 0);
+    delay(1);
+    cur_color = 'R';
+  }
+  return;
+}
