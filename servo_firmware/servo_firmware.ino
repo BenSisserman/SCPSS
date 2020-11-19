@@ -2,10 +2,11 @@
 #include <SPI.h>
 
 #define BUF_SIZE 128
-#define END_MSG   'E'
-#define CMD_MSG   'C'
-#define TIME_MSG  'T'
-#define JITTER_MSG 'J'
+#define END_MSG     'E'
+#define CMD_MSG     'C'
+#define TIME_MSG    'T'
+#define JITTER_MSG  'J'
+#define TURN_OFF    '0'
 
 // lcd defines
 //////// PINS FOR ESP32S2 to LCD
@@ -23,16 +24,18 @@
 #define SCR_WIDTH   16
 #define LCD_SIZE    32
 
-// pins for relay board
-#define relay0      0
-#define relay1      1
-#define relay2      2
-#define relay3      3
+// variables for servo board
+// frequency 4000 = 20ms
+#define servo_pin     2
+#define frequency     4000
+#define pwm_channel   0
+#define resolution    8
 
 void init_lcd();
 void clear_screen();
 void print_lcd(const char* msg, bool clear_buf = true);
 void setBacklight(uint8_t R, uint8_t G, uint8_t B);
+void run_motor();
 
 // data for lcd using SPI
 SPIClass * vspi = NULL;
@@ -44,13 +47,14 @@ WiFiServer server(port);
 WiFiClient host;
 
 // place SSID and password for WiFi here
-const char* ssid = "RockoNet";
-const char* password = "Sasroc0882!";
+const char* ssid = "BenPhone";
+const char* password = "rocko2323";
 
 // data for jitter buffer
 int jitter_buf = 200;
 unsigned long start_time;
 
+int   buf_cur = 0;
 // list of states, the number given to a state correlates by index to a meaning in this array
 const String states[4] = {"BOOT", "WIFI_CONNECT", "TCP_ENABLED", "OPERATIONAL"};
 
@@ -61,13 +65,13 @@ String ip2string(IPAddress ip);
 
 // glolbal variables
 int   state = 0;
-int   buf_cur = 0;
 int   iter;
 char  rx_buf[BUF_SIZE];
 char  rx_msg[BUF_SIZE];
 char  in_byte;
 long  rx_time;
-
+int duty_cycle = 0;
+bool motor_state = false;
 
 void setup() {
   // connect to wifi network
@@ -94,15 +98,8 @@ void setup() {
   Serial.println("Server set up.");
 
   // pin modes and set up for relay
-  pinMode(relay0,OUTPUT);
-  pinMode(relay1,OUTPUT);
-  pinMode(relay2,OUTPUT);
-  pinMode(relay3,OUTPUT);
-
-  digitalWrite(relay0, HIGH);
-  digitalWrite(relay1, HIGH);
-  digitalWrite(relay2, HIGH);
-  digitalWrite(relay3, HIGH);
+  ledcSetup(pwm_channel, frequency, resolution);
+  ledcAttachPin(servo_pin, pwm_channel);
 }
 
 void loop() {
@@ -174,16 +171,22 @@ void loop() {
     
       // turn on or off relays by first char, relay number from second char
       if(rx_msg[0] == '1'){
-        digitalWrite((int)(rx_msg[1] - '0'), LOW);
-        print_lcd("relay ");
-        print_lcd(((String)rx_msg[1]).c_str(),false);
-        print_lcd(" on",false);
-        }
-      else if(rx_msg[0] == '0'){
-        digitalWrite((int)(rx_msg[1] - '0'), HIGH);
-        print_lcd("relay ");
-        print_lcd(((String)rx_msg[1]).c_str(),false);
-        print_lcd(" off",false);
+        motor_state = true;
+
+        while(motor_state){
+          print_lcd("servo ");
+          print_lcd(" on",false);
+          run_motor();
+          char msg = recv_msg();
+
+          if(rx_buf[0]==TURN_OFF){
+            motor_state = false;
+            }
+          }
+
+          digitalWrite(servo_pin, LOW);
+          print_lcd("servo ");
+          print_lcd(" off", false);
         }
     }
 
@@ -339,4 +342,15 @@ String ip2string(IPAddress ip){
 
 unsigned long get_time(){
   return millis() - start_time;
+  }
+
+void run_motor(){
+  for(duty_cycle = 0; duty_cycle <= 52; duty_cycle++){
+    ledcWrite(pwm_channel, duty_cycle);
+    delay(15);
+    }
+  for(duty_cycle = 52; duty_cycle >= 0; duty_cycle--){
+    ledcWrite(pwm_channel, duty_cycle);
+    delay(15);
+    }
   }
