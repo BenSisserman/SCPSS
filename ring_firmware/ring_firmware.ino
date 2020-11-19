@@ -24,8 +24,7 @@
 #define SCR_WIDTH   16
 #define LCD_SIZE    32
 
-// variables for servo board
-// frequency 4000 = 20ms
+// variables for ringing board
 #define ring_pin_0    2
 #define ring_pin_180  3
 
