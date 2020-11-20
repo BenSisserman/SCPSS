@@ -109,7 +109,8 @@ void setup() {
   double dd1 = ledcSetup(ledc_channel_0, freq, resolution);
   double dd2 = ledcSetup(ledc_channel_180, freq, resolution);
   Serial.print("actual PWM freq at setup 0 and 180: ");
-  Serial.println(dd1, dd2);
+  Serial.println(dd1);
+  Serial.println(dd2);
   
   ledcAttachPin(ring_pin_0, ledc_channel_0);
   ledcAttachPin(ring_pin_180, ledc_channel_180);
@@ -173,7 +174,8 @@ void loop() {
 
           }
           Serial.println("received turn off");
-          digitalWrite(servo_pin, LOW);
+          digitalWrite(ring_pin_0, LOW);
+          digitalWrite(ring_pin_180, LOW);
           Serial.println("should done turn off");
           print_lcd("ringing ");
           print_lcd("Turned off",false);
@@ -381,11 +383,11 @@ String ip2string(IPAddress ip){
 
 void run_motor(){
   for(duty_cycle = 0; duty_cycle <= 52; duty_cycle++){
-    ledcWrite(ledc_channel, duty_cycle);
+    ledcWrite(ledc_channel_0, duty_cycle);
     delay(15);
     }
   for(duty_cycle = 52; duty_cycle >= 0; duty_cycle--){
-    ledcWrite(ledc_channel, duty_cycle);
+    ledcWrite(ledc_channel_180, duty_cycle);
     delay(15);
     }
   }
