@@ -88,9 +88,6 @@ void setup() {
   init_lcd();
 
   print_lcd("Connecting to WiFi...");
-
-  //check_battery();
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     //Serial.print("Connecting to Wifi network: ");

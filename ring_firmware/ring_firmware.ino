@@ -28,6 +28,11 @@
 #define ring_pin_0    2
 #define ring_pin_180  3
 
+// constant ratio for converting analog input to voltage: 278 per 1V
+#define BATTERY_PIN 1
+#define VOLTAGE_CONVERT 278.0
+
+double analog2voltage(int input);
 void init_lcd();
 void clear_screen();
 void print_lcd(const char* msg, bool clear_buf = true);
@@ -80,8 +85,8 @@ void setup() {
   print_lcd("Connecting to WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print("Connecting to Wifi network: ");
-    Serial.println(ssid);
+//    Serial.print("Connecting to Wifi network: ");
+//    Serial.println(ssid);
   }
 
   state++;
@@ -135,7 +140,8 @@ void loop() {
   
   print_lcd("Listening for commands...");
   while (host.connected()) {
-
+    check_battery();
+    
     // first get string msg
     char msg_type = recv_msg();
 
@@ -349,3 +355,32 @@ void run_ring(){
   digitalWrite(ring_pin_180, HIGH);
   delay(23);
   }
+
+// converts analog read input from battery sense circuit to approximate voltage
+double analog2voltage(int input) {
+  return input / VOLTAGE_CONVERT;
+}
+  
+double voltage = 0;
+void check_battery() {
+  // read battery
+  voltage = 0;
+  for (int i = 0; i < 10; i++) {
+    voltage += analog2voltage(analogRead(BATTERY_PIN));
+  }
+  voltage = voltage / 10;
+  Serial.print("voltage: ");
+  Serial.println(voltage);
+  if (voltage >= 5.4 && cur_color != 'G') {
+    setBacklight(0, 255, 0);
+    delay(1);
+    cur_color = 'G';
+  }
+
+  else if (voltage < 5.0 && cur_color != 'R') {
+    setBacklight(255, 0, 0);
+    delay(1);
+    cur_color = 'R';
+  }
+  return;
+}
