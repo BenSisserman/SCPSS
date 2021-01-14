@@ -32,4 +32,28 @@ import SCPSS from SCPSS
 #initialize the SCPSS object
 relay_device = SCPSS(<string IP>, <int port>)  
 ```
+#### Sending Commands to the device
 
+Once the the SCPSS object is initialized, the esp32-s2 is connected and waiting for commands. You should be able to verify this connection by the status displayed on the LCD display.
+
+To send commands to device use the following functions:
+```
+relay_device.turnOn() # on device to continously make sound
+
+relay_device.turnOff() # deactivate sound
+
+# for the relay board, you can specify which relay to activate or deactivate by adding the a number from 0 - 3
+
+relay_device.turnOn(1)   # activate the relay 2
+relay_device.turnOff(2)  # deactivate relay 3
+
+# for the relay board using no argument is the same as using index 0
+relay_board.turnOn()
+relay_board.turnOn(0)   # both activate relay 1
+```
+
+It is recommended to properly close the port using:
+```
+relay_board.closePort()
+```
+After this the board will lose connection to the host PC and can be paired with a different host.
