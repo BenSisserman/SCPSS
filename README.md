@@ -13,7 +13,19 @@ The only files neccesary for using this project are the SCPSS.py module and the 
 
 1) Download Arduino IDE: [Link](https://www.arduino.cc/en/software)
 
-2) Download Arduino Core for the ESP32-S2 [Link](https://github.com/espressif/arduino-esp32/tree/esp32s2) 
+2) Open Arduino IDE and Install ESP32 board package by adding stable release link in the "Link" on the Additional Boards Manager URLS in File -> Preferences -> Settings: [Link](https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md)
+
+3) Download Arduino Core for the ESP32-S2: [Link](https://github.com/espressif/arduino-esp32/tree/esp32s2) 
+
+4) Extract zip file of Arduino Core and run get.exe in tools folder.
+
+5) Open preferences of Arduino IDE and go to the directory of ESP32 board package.
+
+6) Inside packages folder, backup original esp32 folder and go inside the esp32 folder until there are folders of cores.(esp32 -> hardware -> esp32 -> 1.0.4)
+
+7) Replace all folders and files from packages folder to same ones from Arduino Core of the ESP32-S2.
+
+8) There will be a new board of ESP32S2 Dev Module on the ESP32 Arduino Board Manager of Arduino IDE. 
 
 ## Usage
 
