@@ -21,11 +21,13 @@ The only files neccesary for using this project are the SCPSS.py module and the 
 
 5) Open preferences of Arduino IDE and go to the directory of ESP32 board package.
 
-6) Inside packages folder, backup original esp32 folder and go inside the esp32 folder until there are folders of cores.(esp32 -> hardware -> esp32 -> 1.0.4)
+6) Inside packages folder, backup original esp32 folder and go inside the esp32 folder until there are folders of cores. (esp32 -> hardware -> esp32 -> 1.0.4)
 
-7) Replace all folders and files from packages folder to same ones from Arduino Core of the ESP32-S2.
+7) Replace all folders and files to same ones from Arduino Core of the ESP32-S2.
 
 8) There will be a new board of ESP32S2 Dev Module on the ESP32 Arduino Board Manager of Arduino IDE. 
+
+[Guide Video for Setting Up](https://tutorial.cytron.io/2020/06/25/program-esp32-s2-using-arduino-ide-unofficial/)
 
 ## Usage
 
