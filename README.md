@@ -11,6 +11,8 @@ The only files neccesary for using this project are the SCPSS.py module and the 
 
 ### Setting up Arduino IDE with ESP32-S2
 
+1) Download Arduino IDE [Link] (https://www.arduino.cc/en/software)
+
 ## Usage
 
 ### Controlling the SCPSS devices using the Python Module
